@@ -1,0 +1,49 @@
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "description": "```\r npm init\r ```",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npx nodemon --exec ts-node src/index.ts",
+    "test": "jest --verbose --detectOpenHandles",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "@types/cors": "^2.8.19",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "firebase-admin": "^13.6.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.1.1",
+    "multer": "^2.0.2",
+    "nodemailer": "^8.0.1",
+    "socket": "^1.1.136",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "ts-jest": "^29.4.6",
+    "uuid": "^11.1.0",
+    "zod": "^4.3.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^25.0.3",
+    "@types/nodemailer": "^7.0.10",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.2.2",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  },
+  "keywords": []
+}
