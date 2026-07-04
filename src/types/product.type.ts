@@ -1,12 +1,24 @@
 import z from "zod";
+
 export const CATEGORIES = [
-  "meat",
-  "oil",
-  "pulses",
-  "bakery",
-  "snacks",
-  "beverages",
+  "eau-de-parfum",
+  "eau-de-toilette",
+  "attar-oud",
+  "womens",
+  "mens",
+  "body-mist",
+  "gift-sets",
 ] as const;
+
+export const CONCENTRATIONS = [
+  "parfum",
+  "eau-de-parfum",
+  "eau-de-toilette",
+  "eau-de-cologne",
+  "attar",
+] as const;
+
+export const GENDERS = ["men", "women", "unisex"] as const;
 
 const RatingSchema = z.object({
   userId: z.string(),
@@ -23,19 +35,35 @@ const CommentSchema = z.object({
 export const ProductSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
 
+  brand: z.string().min(1, "Brand is required"),
+
   description: z.string().min(10, "Description must be at least 10 characters"),
 
   price: z.coerce.number().positive("Price must be greater than 0"),
   inStock: z.coerce.number().int("Stock must be an integer").min(0).default(0),
-  manufacturer: z.string().min(1, "Manufacturer is required"),
-
-  manufactureDate: z.string().optional().nullable(),
-  expireDate: z.string().optional().nullable(),
-  nutritionalInfo: z.string().min(1, "Nutritional info is required"),
 
   category: z.enum(CATEGORIES, {
     message: "Category is required",
   }),
+
+  concentration: z.enum(CONCENTRATIONS, {
+    message: "Concentration is required",
+  }),
+
+  gender: z.enum(GENDERS, {
+    message: "Gender is required",
+  }),
+
+  volumeMl: z.coerce.number().positive("Volume must be greater than 0"),
+
+  fragranceNotes: z
+    .object({
+      top: z.array(z.string()).optional(),
+      heart: z.array(z.string()).optional(),
+      base: z.array(z.string()).optional(),
+    })
+    .optional(),
+
   image: z.string().min(1, "Image is required").optional(),
   images: z.array(z.string()).optional(),
 

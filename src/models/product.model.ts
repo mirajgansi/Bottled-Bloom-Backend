@@ -40,20 +40,46 @@ const CommentSchema = new Schema(
   { _id: true },
 );
 
+const FragranceNotesSchema = new Schema(
+  {
+    top: [{ type: String }],
+    heart: [{ type: String }],
+    base: [{ type: String }],
+  },
+  { _id: false },
+);
+
 const ProductSchema = new Schema<ProductType>(
   {
     name: { type: String, required: true, trim: true },
+    brand: { type: String, required: true, trim: true, index: true },
     description: { type: String, required: true },
     price: { type: Number, required: true, min: 0, index: true },
     category: { type: String, required: true, index: true },
 
+    concentration: {
+      type: String,
+      required: true,
+      enum: [
+        "parfum",
+        "eau-de-parfum",
+        "eau-de-toilette",
+        "eau-de-cologne",
+        "attar",
+      ],
+      index: true,
+    },
+    gender: {
+      type: String,
+      required: true,
+      enum: ["men", "women", "unisex"],
+      index: true,
+    },
+    volumeMl: { type: Number, required: true, min: 0 },
+    fragranceNotes: { type: FragranceNotesSchema, required: false },
+
     image: { type: String, required: true },
     images: [{ type: String }],
-
-    manufacturer: { type: String, required: true },
-    manufactureDate: { type: String, required: true },
-    expireDate: { type: String, required: true },
-    nutritionalInfo: { type: String, required: true },
 
     inStock: { type: Number, default: 0, min: 0 },
 

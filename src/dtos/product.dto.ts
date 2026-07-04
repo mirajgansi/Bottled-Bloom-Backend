@@ -5,10 +5,11 @@ export const CreateProductDto = ProductSchema.pick({
   name: true,
   description: true,
   price: true,
-  manufacturer: true,
-  manufactureDate: true,
-  expireDate: true,
-  nutritionalInfo: true,
+  brand: true,
+  concentration: true,
+  gender: true,
+  volumeMl: true,
+  fragranceNotes: true,
   category: true,
   inStock: true,
 }).extend({
@@ -18,6 +19,7 @@ export const CreateProductDto = ProductSchema.pick({
 
   price: z.coerce.number().positive(),
   inStock: z.coerce.number().int().min(0).default(0),
+  volumeMl: z.coerce.number().positive(),
 
   sku: z.string().optional(),
 });
@@ -28,10 +30,11 @@ export const UpdateProductDto = ProductSchema.pick({
   name: true,
   description: true,
   price: true,
-  manufacturer: true,
-  manufactureDate: true,
-  expireDate: true,
-  nutritionalInfo: true,
+  brand: true,
+  concentration: true,
+  gender: true,
+  volumeMl: true,
+  fragranceNotes: true,
   category: true,
   inStock: true,
 })
@@ -41,11 +44,9 @@ export const UpdateProductDto = ProductSchema.pick({
 
     price: z.coerce.number().positive().optional(),
     inStock: z.coerce.number().int().min(0).optional(),
+    volumeMl: z.coerce.number().positive().optional(),
 
-    manufacturer: z.string().optional().or(z.literal("")),
-    manufactureDate: z.string().optional().or(z.literal("")),
-    expireDate: z.string().optional().or(z.literal("")),
-    nutritionalInfo: z.string().optional().or(z.literal("")),
+    brand: z.string().optional().or(z.literal("")),
     sku: z.string().optional().or(z.literal("")),
   });
 
