@@ -1,6 +1,14 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { UserType } from "../types/user.type";
-const UserSchema: Schema = new Schema<UserType>(
+type UserSchemaType = UserType & {
+  failedLoginAttempts?: number;
+  lockUntil?: Date | null;
+  fcmToken?: string | null;
+  passwordResetCode?: string | null;
+  passwordResetExpires?: Date | null;
+};
+
+const UserSchema: Schema = new Schema<UserSchemaType>(
   {
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
@@ -17,9 +25,9 @@ const UserSchema: Schema = new Schema<UserType>(
       enum: ["user", "admin", "driver"],
       default: "user",
     },
-
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date, default: null },
     fcmToken: { type: String, default: null },
-
     passwordResetCode: { type: String, default: null },
     passwordResetExpires: { type: Date, default: null },
   },

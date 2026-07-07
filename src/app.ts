@@ -12,6 +12,9 @@ import adminAnalyticsRoute from "./routes/admin/admin.analytics.route";
 import notificationRoutes from "./routes/notification.route";
 import cors from "cors";
 import path from "path";
+import mongoSanitize from "express-mongo-sanitize";
+import { globalLimiter } from "./middleware/ratelimit.middleware";
+import helmet from "helmet";
 
 const app: Application = express();
 
@@ -22,10 +25,26 @@ let corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(mongoSanitize());
 app.use((req, _res, next) => {
   console.log("➡️", req.method, req.url);
   next();
 });
+app.use(globalLimiter);
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", "data:"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginResourcePolicy: { policy: "same-site" },
+  }),
+);
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);

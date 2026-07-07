@@ -3,10 +3,21 @@ import { ProductRepository } from "../repositories/product.repository";
 import { CreateProductDto, UpdateProductDto } from "../dtos/product.dto";
 import { UserModel } from "../models/user.model";
 import { NotificationService } from "./notification.service";
+import { ProductModel } from "../models/product.model";
 
 const productRepository = new ProductRepository();
 const notificationService = new NotificationService();
 
+type ProductQueryArgs = {
+  page: number;
+  size: number;
+  search?: string;
+  category?: string;
+};
+
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 export class ProductService {
   // ---------------- CREATE (ADMIN) ----------------
   async createProduct(data: CreateProductDto, adminId: string) {
@@ -61,48 +72,35 @@ export class ProductService {
     if (!p) throw new HttpError(404, "Product not found");
     return p;
   }
-  async getAllProducts({
-    page,
-    size,
-    search,
-    category,
-  }: {
-    page?: string;
-    size?: string;
-    search?: string;
-    category?: string;
-  }) {
-    const currentPage = page ? parseInt(page) : 1;
-    const pageSize =
-      size === "all" ? Number.MAX_SAFE_INTEGER : size ? parseInt(size) : 10;
+  async getAllProducts({ page, size, search, category }: ProductQueryArgs) {
+    const skip = (page - 1) * size;
+    const filter: any = {};
 
-    const currentSearch = (search ?? "").trim();
-    const currentCategory = (category ?? "").trim();
+    if (search?.trim()) {
+      const q = escapeRegex(search.trim()).slice(0, 100); // cap length too
+      filter.$or = [
+        { name: { $regex: q, $options: "i" } },
+        { category: { $regex: q, $options: "i" } },
+      ];
+    }
 
-    const normalizedCategory =
-      !currentCategory || currentCategory === "All" ? "" : currentCategory;
+    if (category?.trim()) {
+      filter.category = escapeRegex(category.trim());
+    }
 
-    const { products, total } = await productRepository.getAllProducts({
-      page: currentPage,
-      size: pageSize,
-      search: currentSearch,
-      category: normalizedCategory,
-    });
+    const [products, total] = await Promise.all([
+      ProductModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(size),
+      ProductModel.countDocuments(filter),
+    ]);
 
-    const pagination = {
-      page: currentPage,
-      size: pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    };
-
-    return { products, pagination };
+    return { products, total };
   }
 
   async getProductsByCategory(category: string) {
-    const clean = category?.trim();
-    if (!clean) throw new HttpError(400, "Category is required");
-    return productRepository.getProductsByCategory(clean);
+    const clean = escapeRegex(category.trim()).slice(0, 100);
+    return ProductModel.find({
+      category: { $regex: `^${clean}$`, $options: "i" },
+    }).sort({ createdAt: -1 });
   }
 
   // recently added

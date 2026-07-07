@@ -12,7 +12,12 @@ type Creator = {
   id: string;
   role?: "admin" | "user" | "driver";
 };
-
+function toSafeUser(user: any) {
+  const obj = typeof user.toObject === "function" ? user.toObject() : user;
+  const { password, passwordResetCode, passwordResetExpires, __v, ...safe } =
+    obj;
+  return safe;
+}
 export class UserService {
   async saveFcmToken(userId: string, token: string) {
     if (!token) throw new HttpError(400, "FCM token is required");
@@ -50,39 +55,51 @@ export class UserService {
       // imageUrl: data.imageUrl ?? undefined, // if you have it
     };
     const newUser = await userRepository.createUser(payload);
-    return newUser;
+    return toSafeUser(newUser);
   }
 
   async loginUser(data: LoginUserDTO) {
     const user = await userRepository.getUserByEmail(data.email);
-    if (!user) {
-      throw new HttpError(404, "User not found");
+    if (!user) throw new HttpError(404, "User not found");
+
+    const account = user as any;
+
+    if (account.lockUntil && account.lockUntil > new Date()) {
+      throw new HttpError(
+        423,
+        "Account temporarily locked due to failed logins. Try again later.",
+      );
     }
-    // compare password
+
     const validPassword = await bcryptjs.compare(data.password, user.password);
-    // plaintext, hashed
+
     if (!validPassword) {
+      account.failedLoginAttempts = (account.failedLoginAttempts ?? 0) + 1;
+      if (account.failedLoginAttempts >= 5) {
+        account.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 min lock
+        account.failedLoginAttempts = 0;
+      }
+      await user.save();
       throw new HttpError(401, "Invalid credentials");
     }
-    // generate jwt
+
+    account.failedLoginAttempts = 0;
+    account.lockUntil = null;
+    await user.save();
+
     const payload = {
-      // user identifier
       id: user._id,
       email: user.email,
       username: user.username,
-      // firstName: user.firstName,
-      // lastName: user.lastName,
       role: user.role,
     };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" }); // 30 days
-    return { token, user };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "15m" });
+    return { token, user: toSafeUser(user) };
   }
   async getUserbyId(userId: string) {
     const user = await userRepository.getUserById(userId);
-    if (!user) {
-      throw new HttpError(404, "user not found");
-    }
-    return user;
+    if (!user) throw new HttpError(404, "user not found");
+    return toSafeUser(user);
   }
 
   async updateUser(userId: string, data: UpdateUserDTO) {
@@ -109,7 +126,7 @@ export class UserService {
     }
 
     const updatedUser = await userRepository.updateUser(userId, cleanData);
-    return updatedUser;
+    return toSafeUser(updatedUser);
   }
 
   async sendResetPasswordEmail(email?: string) {

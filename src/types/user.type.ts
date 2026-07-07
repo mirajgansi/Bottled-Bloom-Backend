@@ -3,7 +3,13 @@ import z from "zod";
 export const UserSchema = z.object({
   username: z.string().min(1),
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z
+    .string()
+    .min(10, "Password must be at least 10 characters")
+    .regex(/[a-z]/, "Must contain a lowercase letter")
+    .regex(/[A-Z]/, "Must contain an uppercase letter")
+    .regex(/[0-9]/, "Must contain a number")
+    .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
   // firstName: z.string().optional(),
   // lastName: z.string().optional(),
   phoneNumber: z.string().max(10).optional(),
