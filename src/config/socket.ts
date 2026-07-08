@@ -1,38 +1,41 @@
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
+import { JWT_SECRET } from "./index";
 
 let io: Server;
-
-// store online users
 const onlineUsers = new Map<string, string>();
-// userId -> socketId
 
 export const initSocket = (server: any) => {
   io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: ["http://localhost:3000", "http://localhost:3003"], // no "*", match your app.ts whitelist
       credentials: true,
     },
   });
 
+  // Authenticate the socket at handshake time using the same JWT as HTTP requests
+  io.use((socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token as string | undefined;
+      if (!token) return next(new Error("Unauthorized"));
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+      (socket as any).userId = decoded.id;
+      next();
+    } catch {
+      next(new Error("Unauthorized"));
+    }
+  });
+
   io.on("connection", (socket) => {
-    console.log("New socket connected:", socket.id);
+    const userId = (socket as any).userId as string;
 
-    socket.on("join", (userId: string) => {
-      console.log("User joined room:", userId);
-
-      socket.join(userId);
-      onlineUsers.set(userId, socket.id);
-    });
+    // Auto-join the room derived from the verified token — client can no longer choose the room
+    socket.join(userId);
+    onlineUsers.set(userId, socket.id);
 
     socket.on("disconnect", () => {
-      console.log("Socket disconnected:", socket.id);
-
-      // remove user from online map
       for (const [uid, sid] of onlineUsers.entries()) {
-        if (sid === socket.id) {
-          onlineUsers.delete(uid);
-          break;
-        }
+        if (sid === socket.id) onlineUsers.delete(uid);
       }
     });
   });
@@ -41,5 +44,4 @@ export const initSocket = (server: any) => {
 };
 
 export const getIO = () => io;
-
 export const isUserOnline = (userId: string) => onlineUsers.has(userId);

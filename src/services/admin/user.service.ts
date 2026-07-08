@@ -69,11 +69,29 @@ export class AdminUserService {
 
   async updateUser(id: string, updateData: UpdateUserDTO) {
     const user = await userRepository.getUserById(id);
-    if (!user) {
-      throw new HttpError(404, "User not found");
+    if (!user) throw new HttpError(404, "User not found");
+
+    const { password, role, ...rest } = updateData as any;
+    const safeUpdate: any = { ...rest };
+
+    if (role) safeUpdate.role = role;
+
+    if (password) {
+      safeUpdate.password = await bcryptjs.hash(password, 12);
     }
-    const updatedUser = await userRepository.updateUser(id, updateData);
-    return updatedUser;
+
+    const updatedUser = await userRepository.updateUser(id, safeUpdate);
+    if (!updatedUser) throw new HttpError(404, "User not found");
+
+    const {
+      password: _pw,
+      passwordResetCode,
+      passwordResetExpires,
+      ...safe
+    } = (updatedUser as any).toObject
+      ? (updatedUser as any).toObject()
+      : updatedUser;
+    return safe;
   }
 
   async getUserById(id: string) {

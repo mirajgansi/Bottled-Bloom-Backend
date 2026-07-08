@@ -25,11 +25,14 @@ router.patch(
 
 router.get(
   "/stats/:id",
-  // authMiddleware,
-  // adminMiddleware,
+  authorizedMiddleware,
   controller.getDriverStatsById.bind(controller),
 );
-router.get("/:id/detail", controller.getDriverDetailById.bind(controller));
+router.get(
+  "/:id/detail",
+  authorizedMiddleware,
+  controller.getDriverDetailById.bind(controller),
+);
 
 router.get(
   "/stats",
