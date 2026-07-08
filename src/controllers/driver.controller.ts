@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { DriverService } from "../services/driver.service";
+import { getParam } from "../utils/params";
 
 const driverService = new DriverService();
 
@@ -33,7 +34,10 @@ export class DriverController {
     const { id: orderId } = req.params;
     const { status } = req.body as { status: "shipped" | "delivered" };
 
-    const result = await driverService.driverUpdateOrderStatus(orderId, status);
+    const result = await driverService.driverUpdateOrderStatus(
+      getParam(req, "id"),
+      status,
+    );
     if (!result.success) return res.status(400).json(result);
     return res.json(result);
   }
@@ -45,9 +49,7 @@ export class DriverController {
   }
 
   async getDriverStatsById(req: Request, res: Response) {
-    const { id } = req.params;
-
-    const stats = await driverService.getDriverStatsById(id);
+    const stats = await driverService.getDriverStatsById(getParam(req, "id"));
 
     return res.json({
       success: true,
@@ -55,11 +57,10 @@ export class DriverController {
     });
   }
   async getDriverDetailById(req: Request, res: Response) {
-    const { id } = req.params;
     const { page = "1", size = "10" } = req.query as any;
 
     const result = await driverService.getDriverDetailById(
-      id,
+      getParam(req, "id"),
       Number(page),
       Number(size),
     );

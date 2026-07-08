@@ -2,6 +2,7 @@ import { CreateUserDTO, UpdateUserDTO } from "../../dtos/user.dto";
 import { Request, Response, NextFunction } from "express";
 import z from "zod";
 import { AdminUserService } from "../../services/admin/user.service";
+import { getParam } from "../../utils/params";
 
 let adminUserService = new AdminUserService();
 interface QueryParams {
@@ -62,7 +63,7 @@ export class AdminUserController {
 
   async updateUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.params.id;
+      const userId = getParam(req, "id");
       const parsedData = UpdateUserDTO.safeParse(req.body); // validate request body
       if (!parsedData.success) {
         // validation failed
@@ -89,7 +90,7 @@ export class AdminUserController {
 
   async deleteUser(req: Request, res: Response) {
     try {
-      const userId = req.params.id;
+      const userId = getParam(req, "id");
       const deleted = await adminUserService.deleteUser(userId);
       if (!deleted) {
         return res
@@ -107,7 +108,7 @@ export class AdminUserController {
 
   async getUserById(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.params.id;
+      const userId = getParam(req, "id");
       const user = await adminUserService.getUserById(userId);
       return res
         .status(200)

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { HttpError } from "../errors/http-error";
 import { CartService } from "../services/cart.service";
 import { AddToCartDto, UpdateCartItemDto } from "../dtos/cart.dto";
+import { getParam } from "../utils/params";
 
 const cartService = new CartService();
 
@@ -45,7 +46,7 @@ export class CartController {
   // PATCH /cart/items/:productId
   async updateItemQuantity(req: Request, res: Response) {
     const userId = getUserId(req);
-    const productId = req.params.productId;
+    const productId = getParam(req, "productId");
 
     if (!productId) throw new HttpError(400, "productId param is required");
 
@@ -70,7 +71,7 @@ export class CartController {
   // DELETE /cart/items/:productId
   async removeItem(req: Request, res: Response) {
     const userId = getUserId(req);
-    const productId = req.params.productId;
+    const productId = getParam(req, "productId");
 
     if (!productId) throw new HttpError(400, "productId param is required");
 

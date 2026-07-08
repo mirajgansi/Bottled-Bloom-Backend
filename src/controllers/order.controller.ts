@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { OrderService } from "../services/order.service";
 import { AssignDriverDto, UpdateOrderStatusDto } from "../dtos/order.dto";
 import { HttpError } from "../errors/http-error";
+import { getParam } from "../utils/params";
 
 const orderService = new OrderService();
 
@@ -59,7 +60,7 @@ export class OrderController {
       const userId = (req as any).user?.id;
       const role = (req as any).user?.role;
 
-      const order = await orderService.getOrderById(req.params.id);
+      const order = await orderService.getOrderById(getParam(req, "id"));
 
       // user can only see own order (admin can see all)
       if (
@@ -119,7 +120,7 @@ export class OrderController {
       }
 
       const updated = await orderService.updateStatus(
-        req.params.id,
+        getParam(req, "id"),
         parsed.data,
       );
 
@@ -139,7 +140,10 @@ export class OrderController {
   async cancelMyOrder(req: Request, res: Response) {
     try {
       const userId = req.user!._id;
-      const updated = await orderService.cancelMyOrder(req.params.id, userId);
+      const updated = await orderService.cancelMyOrder(
+        getParam(req, "id"),
+        userId,
+      );
 
       return res.json({
         success: true,
@@ -169,7 +173,7 @@ export class OrderController {
       if (!adminId) throw new HttpError(401, "Unauthorized");
 
       const updated = await orderService.assignDriver(
-        req.params.id,
+        getParam(req, "id"),
         parsed.data.driverId,
         adminId,
       );

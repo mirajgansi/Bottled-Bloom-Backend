@@ -9,6 +9,9 @@ import {
   AddCommentDto,
 } from "../dtos/product.dto";
 import mongoose from "mongoose";
+import { escapeRegex } from "zod/v4/core/util.cjs";
+import { ProductModel } from "../models/product.model";
+import { getParam } from "../utils/params";
 
 const productService = new ProductService();
 
@@ -69,7 +72,7 @@ export class ProductController {
   // ---------------- READ ----------------
   async getProductById(req: Request, res: Response) {
     try {
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
 
       const userId = req.user?._id?.toString(); // may be undefined
 
@@ -88,34 +91,63 @@ export class ProductController {
     }
   }
 
-  async getAllProducts(req: Request, res: Response) {
-    try {
-      const { page, size, search, category }: QueryParams = req.query;
+  async getAllProducts({
+    page,
+    size,
+    search,
+    category,
+  }: {
+    page?: string;
+    size?: string;
+    search?: string;
+    category?: string;
+  }) {
+    const currentPage = page ? parseInt(page) : 1;
+    const pageSize =
+      size === "all" ? Number.MAX_SAFE_INTEGER : size ? parseInt(size) : 10;
 
-      const products = await productService.getAllProducts({
-        page,
-        size,
-        search,
-        category,
-      });
+    const skip = (currentPage - 1) * pageSize;
+    const filter: any = {};
 
-      return res.status(200).json({
-        success: true,
-        message: "Products fetched successfully",
-        data: products,
-      });
-    } catch (error: any) {
-      return res.status(error.statusCode ?? 500).json({
-        success: false,
-        message: error.message || "Internal Server Error",
-      });
+    const currentSearch = (search ?? "").trim();
+    const currentCategory = (category ?? "").trim();
+    const normalizedCategory =
+      !currentCategory || currentCategory === "All" ? "" : currentCategory;
+
+    if (currentSearch) {
+      const q = escapeRegex(currentSearch).slice(0, 100);
+      filter.$or = [
+        { name: { $regex: q, $options: "i" } },
+        { category: { $regex: q, $options: "i" } },
+      ];
     }
+
+    if (normalizedCategory) {
+      filter.category = escapeRegex(normalizedCategory);
+    }
+
+    const [products, total] = await Promise.all([
+      ProductModel.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize),
+      ProductModel.countDocuments(filter),
+    ]);
+
+    const pagination = {
+      page: currentPage,
+      size: pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
+
+    return { products, pagination };
   }
 
   async getProductsByCategory(req: Request, res: Response) {
     try {
       const products = await productService.getProductsByCategory(
-        req.params.category,
+        getParam(req, "category"),
       );
 
       return res.status(200).json({
@@ -242,7 +274,7 @@ export class ProductController {
   // ---------------- UPDATE (ADMIN) ----------------
   async updateProduct(req: Request, res: Response) {
     try {
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
 
       const body: any = { ...req.body };
 
@@ -298,7 +330,7 @@ export class ProductController {
   // ---------------- DELETE (ADMIN ONLY) ----------------
   async deleteProduct(req: Request, res: Response) {
     try {
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
       const result = await productService.deleteProduct(productId);
 
       return res.status(200).json({
@@ -324,7 +356,7 @@ export class ProductController {
           .json({ success: false, message: "Unauthorized" });
       }
 
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
       if (!mongoose.Types.ObjectId.isValid(productId)) {
         return res
           .status(400)
@@ -385,7 +417,7 @@ export class ProductController {
   // ---------------- VIEW COUNT (PUBLIC) ----------------
   async incrementViewCount(req: Request, res: Response) {
     try {
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
 
       if (!mongoose.Types.ObjectId.isValid(productId)) {
         return res
@@ -422,7 +454,7 @@ export class ProductController {
           .json({ success: false, message: "Unauthorized" });
       }
 
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
       if (!mongoose.Types.ObjectId.isValid(productId)) {
         return res
           .status(400)
@@ -466,7 +498,7 @@ export class ProductController {
           .json({ success: false, message: "Unauthorized" });
       }
 
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
       if (!mongoose.Types.ObjectId.isValid(productId)) {
         return res
           .status(400)
@@ -501,7 +533,7 @@ export class ProductController {
           .json({ success: false, message: "Unauthorized" });
       }
 
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
       if (!mongoose.Types.ObjectId.isValid(productId)) {
         return res
           .status(400)
@@ -562,7 +594,7 @@ export class ProductController {
   // ---------------- GET COMMENTS (PUBLIC) ----------------
   async getProductComments(req: Request, res: Response) {
     try {
-      const productId = req.params.id;
+      const productId = getParam(req, "id");
 
       if (!mongoose.Types.ObjectId.isValid(productId)) {
         return res.status(400).json({
