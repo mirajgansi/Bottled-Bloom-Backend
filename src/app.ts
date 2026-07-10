@@ -25,11 +25,26 @@ let corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(mongoSanitize());
 app.use((req, _res, next) => {
   console.log("➡️", req.method, req.url);
   next();
 });
+// Custom sanitize middleware — Express 5 compatible
+app.use((req, _res, next) => {
+  if (req.body) {
+    req.body = mongoSanitize.sanitize(req.body);
+  }
+  if (req.params) {
+    req.params = mongoSanitize.sanitize(req.params);
+  }
+  if (req.query && Object.keys(req.query).length > 0) {
+    const sanitizedQuery = mongoSanitize.sanitize({ ...req.query });
+    Object.keys(req.query).forEach((key) => delete (req.query as any)[key]);
+    Object.assign(req.query, sanitizedQuery);
+  }
+  next();
+});
+
 app.use(globalLimiter);
 app.use(
   helmet({

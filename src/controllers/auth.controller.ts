@@ -5,6 +5,7 @@ import {
   SaveFcmTokenDTO,
   UpdateProfileDTO,
   UpdateUserDTO,
+  VerifyLoginOtpDTO,
 } from "../dtos/user.dto";
 import { Request, Response } from "express";
 import z from "zod";
@@ -109,14 +110,45 @@ export class AuthController {
           .json({ success: false, message: z.prettifyError(parsedData.error) });
       }
       const loginData: LoginUserDTO = parsedData.data;
-      const { token, user } = await userService.loginUser(loginData);
+
+      const result = await userService.loginUser(loginData);
+
+      // ✅ No session issued yet — client must complete OTP verification
+      return res.status(200).json({
+        success: true,
+        message: "Verification code sent to your email",
+        requiresOtp: true,
+        tempToken: result.tempToken,
+      });
+    } catch (error: Error | any) {
+      return res.status(error.statusCode ?? 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  async verifyLoginOtp(req: Request, res: Response) {
+    try {
+      const parsed = VerifyLoginOtpDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return res
+          .status(400)
+          .json({ success: false, message: z.prettifyError(parsed.error) });
+      }
+
+      const { token, user } = await userService.verifyLoginOtp(
+        parsed.data.tempToken,
+        parsed.data.code,
+      );
+
       return res.status(200).json({
         success: true,
         message: "Login successful",
         data: user,
         token,
       });
-    } catch (error: Error | any) {
+    } catch (error: any) {
       return res.status(error.statusCode ?? 500).json({
         success: false,
         message: error.message || "Internal Server Error",

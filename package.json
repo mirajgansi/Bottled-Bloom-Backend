@@ -11,6 +11,9 @@
     "test": "jest --verbose --detectOpenHandles",
     "test:coverage": "jest --coverage"
   },
+  "overrides": {
+    "zod": "4.4.3"
+  },
   "dependencies": {
     "@types/cors": "^2.8.19",
     "bcryptjs": "^3.0.3",
@@ -24,12 +27,11 @@
     "mongoose": "^9.1.1",
     "multer": "^2.0.2",
     "nodemailer": "^9.0.3",
-    "socket": "^1.1.136",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "ts-jest": "^29.4.6",
     "uuid": "^11.1.0",
-    "zod": "^4.4.3"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

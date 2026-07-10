@@ -30,6 +30,10 @@ const UserSchema: Schema = new Schema<UserSchemaType>(
     fcmToken: { type: String, default: null },
     passwordResetCode: { type: String, default: null },
     passwordResetExpires: { type: Date, default: null },
+    loginOtpCodeHash: { type: String, default: null, select: false },
+    loginOtpExpires: { type: Date, default: null },
+    loginOtpAttempts: { type: Number, default: 0 },
+    loginOtpLockedUntil: { type: Date, default: null },
   },
 
   {

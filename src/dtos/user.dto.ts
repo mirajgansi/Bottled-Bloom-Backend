@@ -58,5 +58,9 @@ export type UpdateProfileDTO = z.infer<typeof UpdateProfileDTO>;
 export const SaveFcmTokenDTO = z.object({
   token: z.string().min(10, "Invalid FCM token"),
 });
-
+export const VerifyLoginOtpDTO = z.object({
+  tempToken: z.string().min(10, "Invalid session token"),
+  code: z.string().regex(/^\d{6}$/, "Code must be exactly 6 digits"),
+});
+export type VerifyLoginOtpDTO = z.infer<typeof VerifyLoginOtpDTO>;
 export type SaveFcmTokenDTO = z.infer<typeof SaveFcmTokenDTO>;

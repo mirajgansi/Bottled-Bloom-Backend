@@ -9,7 +9,7 @@ import {
   AddCommentDto,
 } from "../dtos/product.dto";
 import mongoose from "mongoose";
-import { escapeRegex } from "zod/v4/core/util.cjs";
+import { escapeRegex } from "../utils/escapeRegex";
 import { ProductModel } from "../models/product.model";
 import { getParam } from "../utils/params";
 

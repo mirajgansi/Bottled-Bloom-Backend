@@ -5,6 +5,7 @@ import { uploads } from "../middleware/upload.middleware";
 import {
   authLimiter,
   resetCodeLimiter,
+  otpVerifyLimiter,
 } from "../middleware/ratelimit.middleware";
 let authController = new AuthController();
 const router = Router();
@@ -26,7 +27,11 @@ router.post(
   resetCodeLimiter,
   authController.verifyResetPasswordCode,
 );
-
+router.post(
+  "/verify-login-otp",
+  otpVerifyLimiter,
+  authController.verifyLoginOtp,
+);
 router.post(
   "/request-password-reset",
   resetCodeLimiter,
