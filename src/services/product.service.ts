@@ -72,28 +72,60 @@ export class ProductService {
     if (!p) throw new HttpError(404, "Product not found");
     return p;
   }
-  async getAllProducts({ page, size, search, category }: ProductQueryArgs) {
-    const skip = (page - 1) * size;
-    const filter: any = {};
+  async getAllProducts({
+    page,
+    size,
+    search,
+    category,
+  }: {
+    page?: string | number;
+    size?: string | number;
+    search?: string;
+    category?: string;
+  }) {
+    const currentPage = Math.max(1, parseInt(String(page ?? "1"), 10) || 1);
 
-    if (search?.trim()) {
-      const q = escapeRegex(search.trim()).slice(0, 100); // cap length too
-      filter.$or = [
-        { name: { $regex: q, $options: "i" } },
-        { category: { $regex: q, $options: "i" } },
-      ];
+    const rawSize = String(size ?? "10");
+    const pageSize =
+      rawSize === "all"
+        ? Number.MAX_SAFE_INTEGER
+        : Math.max(1, parseInt(rawSize, 10) || 10);
+
+    const skip = (currentPage - 1) * pageSize;
+    const filter: any = {};
+    let sort: any = { createdAt: -1 };
+    let projection: any = undefined;
+
+    const cleanSearch = search?.trim().slice(0, 100);
+
+    if (cleanSearch) {
+      filter.$text = { $search: cleanSearch };
+      // Sort by text relevance score first, then recency as a tiebreaker
+      projection = { score: { $meta: "textScore" } };
+      sort = { score: { $meta: "textScore" }, createdAt: -1 };
     }
 
-    if (category?.trim()) {
+    if (category?.trim() && category.trim() !== "All") {
       filter.category = escapeRegex(category.trim());
     }
 
     const [products, total] = await Promise.all([
-      ProductModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(size),
+      ProductModel.find(filter, projection)
+        .sort(sort)
+        .skip(skip)
+        .limit(pageSize),
       ProductModel.countDocuments(filter),
     ]);
 
-    return { products, total };
+    return {
+      products,
+      pagination: {
+        page: currentPage,
+        size: pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
   }
 
   async getProductsByCategory(category: string) {

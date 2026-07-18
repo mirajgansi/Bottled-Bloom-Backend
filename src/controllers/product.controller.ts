@@ -91,59 +91,29 @@ export class ProductController {
     }
   }
 
-  async getAllProducts({
-    page,
-    size,
-    search,
-    category,
-  }: {
-    page?: string;
-    size?: string;
-    search?: string;
-    category?: string;
-  }) {
-    const currentPage = page ? parseInt(page) : 1;
-    const pageSize =
-      size === "all" ? Number.MAX_SAFE_INTEGER : size ? parseInt(size) : 10;
+  async getAllProducts(req: Request, res: Response) {
+    try {
+      const { page, size, search, category } = req.query as QueryParams;
 
-    const skip = (currentPage - 1) * pageSize;
-    const filter: any = {};
+      const result = await productService.getAllProducts({
+        page,
+        size,
+        search,
+        category,
+      });
 
-    const currentSearch = (search ?? "").trim();
-    const currentCategory = (category ?? "").trim();
-    const normalizedCategory =
-      !currentCategory || currentCategory === "All" ? "" : currentCategory;
-
-    if (currentSearch) {
-      const q = escapeRegex(currentSearch).slice(0, 100);
-      filter.$or = [
-        { name: { $regex: q, $options: "i" } },
-        { category: { $regex: q, $options: "i" } },
-      ];
+      return res.status(200).json({
+        success: true,
+        message: "Products fetched successfully",
+        data: result,
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode ?? 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
     }
-
-    if (normalizedCategory) {
-      filter.category = escapeRegex(normalizedCategory);
-    }
-
-    const [products, total] = await Promise.all([
-      ProductModel.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(pageSize),
-      ProductModel.countDocuments(filter),
-    ]);
-
-    const pagination = {
-      page: currentPage,
-      size: pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    };
-
-    return { products, pagination };
   }
-
   async getProductsByCategory(req: Request, res: Response) {
     try {
       const products = await productService.getProductsByCategory(

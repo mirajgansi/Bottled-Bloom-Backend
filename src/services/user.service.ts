@@ -21,7 +21,7 @@ const LOGIN_LOCK_MINUTES = 15;
 
 const OTP_EXPIRY_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 10;
-const OTP_LOCK_MINUTES = 15;
+const OTP_LOCK_MINUTES = 0.5; // 30 seconds
 const OTP_TEMP_TOKEN_TTL = "10m";
 
 function toSafeUser(user: any) {

@@ -56,7 +56,6 @@ const ProductSchema = new Schema<ProductType>(
     description: { type: String, required: true },
     price: { type: Number, required: true, min: 0, index: true },
     category: { type: String, required: true, index: true },
-
     concentration: {
       type: String,
       required: true,
@@ -107,6 +106,10 @@ const ProductSchema = new Schema<ProductType>(
     },
   },
   { timestamps: true },
+);
+ProductSchema.index(
+  { name: "text", category: "text" },
+  { weights: { name: 5, category: 1 }, name: "product_search_index" },
 );
 
 export const ProductModel =
