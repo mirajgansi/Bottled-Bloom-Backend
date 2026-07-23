@@ -12,6 +12,7 @@ import mongoose from "mongoose";
 import { escapeRegex } from "../utils/escapeRegex";
 import { ProductModel } from "../models/product.model";
 import { getParam } from "../utils/params";
+import { verifyImageOrDelete } from "../utils/verifyImageSignature";
 
 const productService = new ProductService();
 
@@ -42,10 +43,23 @@ export class ProductController {
       }
 
       const files = req.files as Express.Multer.File[] | undefined;
+
+      // ✅ check existence BEFORE iterating
       if (!files || files.length === 0) {
         return res
           .status(400)
           .json({ success: false, message: "Image is required" });
+      }
+
+      // ✅ now safe to iterate
+      for (const f of files) {
+        const ok = await verifyImageOrDelete(f.path);
+        if (!ok) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid or corrupted image file",
+          });
+        }
       }
 
       parsedData.data.image = `/uploads/${files[0].filename}`;
@@ -68,7 +82,6 @@ export class ProductController {
       });
     }
   }
-
   // ---------------- READ ----------------
   async getProductById(req: Request, res: Response) {
     try {

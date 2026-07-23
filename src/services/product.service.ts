@@ -4,6 +4,8 @@ import { CreateProductDto, UpdateProductDto } from "../dtos/product.dto";
 import { UserModel } from "../models/user.model";
 import { NotificationService } from "./notification.service";
 import { ProductModel } from "../models/product.model";
+import { deleteUploadedFiles } from "../utils/deleteUploadFile";
+import { escapeRegex } from "../utils/escapeRegex";
 
 const productRepository = new ProductRepository();
 const notificationService = new NotificationService();
@@ -15,9 +17,6 @@ type ProductQueryArgs = {
   category?: string;
 };
 
-function escapeRegex(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 export class ProductService {
   // ---------------- CREATE (ADMIN) ----------------
   async createProduct(data: CreateProductDto, adminId: string) {
@@ -160,16 +159,20 @@ export class ProductService {
     const existing = await productRepository.getProductById(productId);
     if (!existing) throw new HttpError(404, "Product not found");
 
-    // if updating name, check duplicates
     if (data.name && data.name !== existing.name) {
       const nameCheck = await productRepository.getProductByName(data.name);
       if (nameCheck) throw new HttpError(409, "Product name already in use");
     }
 
     const update: any = { ...data };
+    let removedImages: string[] = [];
 
-    // handle existingImages swap
     if (Array.isArray(data.existingImages)) {
+      const oldImages = existing.images ?? [];
+      removedImages = oldImages.filter(
+        (img) => !data.existingImages!.includes(img),
+      );
+
       update.images = data.existingImages;
       update.image = data.existingImages[0] ?? existing.image;
       delete update.existingImages;
@@ -177,13 +180,25 @@ export class ProductService {
 
     const updated = await productRepository.updateProduct(productId, update);
     if (!updated) throw new HttpError(404, "Product not found");
+
+    if (removedImages.length) {
+      await deleteUploadedFiles(removedImages);
+    }
+
     return updated;
   }
-
   // ---------------- DELETE (ADMIN) ----------------
   async deleteProduct(productId: string) {
-    const ok = await productRepository.deleteProduct(productId);
-    if (!ok) throw new HttpError(404, "Product not found");
+    const existing = await productRepository.getProductById(productId);
+    if (!existing) throw new HttpError(404, "Product not found");
+
+    const deleted = await productRepository.deleteProduct(productId);
+    if (!deleted) throw new HttpError(404, "Product not found");
+
+    // clean up all associated files (main image + gallery), ignore missing
+    const filesToRemove = [existing.image, ...(existing.images ?? [])];
+    await deleteUploadedFiles(filesToRemove);
+
     return { success: true };
   }
 
