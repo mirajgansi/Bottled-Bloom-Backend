@@ -42,6 +42,7 @@ const UserSchema: Schema = new Schema<UserSchemaType>(
 );
 
 export interface IUser extends UserType, Document {
+  lockUntil: Date;
   // combine UserType and Document
   _id: mongoose.Types.ObjectId; // mongo related attribute/ custom attributes
   createdAt: Date;

@@ -2,10 +2,11 @@ import rateLimit from "express-rate-limit";
 
 // Generic strict limiter for auth-sensitive endpoints
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 5, // 8 attempts / 15 min / IP
+  windowMs: 15 * 60 * 1000,
+  max: 12,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true, // only failed attempts count toward the limit
   message: { success: false, message: "Too many attempts. Try again later." },
 });
 export const otpVerifyLimiter = rateLimit({

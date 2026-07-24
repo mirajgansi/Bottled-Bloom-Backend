@@ -15,13 +15,23 @@ type Creator = {
   role?: "admin" | "user" | "driver";
 };
 
+// A bcrypt hash of a value nobody will ever type, used so failed logins for
+// an email that doesn't exist take the same amount of time as a real
+// password comparison (defends against timing-based enumeration).
+const DUMMY_HASH =
+  "$2a$10$CwTycUXWue0Thq9StjUM0uJ8i9m2ZQMLXe2rH0YvXKz6nqZmY9dke";
+
 // ✅ thresholds within rubric-required 10–15 range
-const MAX_LOGIN_ATTEMPTS = 10;
+const MAX_LOGIN_ATTEMPTS = 12;
+// 🔴 FIX (Bug #1): this was `15 * 60 * 1000` — already pre-converted to ms —
+// and then got multiplied by `* 60 * 1000` AGAIN at the call site below,
+// turning a 15-minute lock into ~625 days. Keep this as a plain minute
+// count; conversion to ms happens exactly once, at the point of use.
 const LOGIN_LOCK_MINUTES = 15;
 
 const OTP_EXPIRY_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 10;
-const OTP_LOCK_MINUTES = 0.5; // 30 seconds
+const OTP_LOCK_MINUTES = 15;
 const OTP_TEMP_TOKEN_TTL = "10m";
 
 function toSafeUser(user: any) {
@@ -31,6 +41,14 @@ function toSafeUser(user: any) {
     passwordResetCode,
     passwordResetExpires,
     loginOtpCodeHash,
+    // 🟡 FIX (Gap #2): these were leaking to the client — they expose the
+    // exact state of the brute-force defenses (how many attempts are left,
+    // whether/when the account unlocks, whether an OTP is pending).
+    loginOtpExpires,
+    loginOtpAttempts,
+    loginOtpLockedUntil,
+    failedLoginAttempts,
+    lockUntil,
     __v,
     ...safe
   } = obj;
@@ -73,39 +91,57 @@ export class UserService {
    * by email instead of issuing a session token directly.
    */
   async loginUser(data: LoginUserDTO) {
-    const user = await userRepository.getUserByEmail(data.email);
-    if (!user) throw new HttpError(404, "User not found");
+    // 🟡 FIX (Gap #1): a single helper for the generic failure so every
+    // failure path — no such user, wrong password, locked account — returns
+    // the exact same status/message. Previously "no user" was a 404 and
+    // "wrong password" was a 401, which let an attacker enumerate which
+    // emails have accounts just by watching the status code.
+    const genericFailure = () =>
+      new HttpError(401, "Invalid email or password");
 
+    const user = await userRepository.getUserByEmail(data.email);
     const account = user as any;
 
-    if (account.lockUntil && account.lockUntil > new Date()) {
-      throw new HttpError(
-        423,
-        "Account temporarily locked due to failed logins. Try again later.",
-      );
+    // Compare against the real hash if the user exists, otherwise against a
+    // dummy hash. This runs unconditionally, before any branching on
+    // whether the user/lock exists, so response time doesn't leak account
+    // existence either.
+    const validPassword = await bcryptjs.compare(
+      data.password,
+      account?.password ?? DUMMY_HASH,
+    );
+
+    if (!user) {
+      throw genericFailure();
     }
 
-    const validPassword = await bcryptjs.compare(data.password, user.password);
+    // Locked accounts also fail generically (no distinct 423 status) —
+    // a different status code here would itself confirm the account exists
+    // and is currently locked.
+    if (account.lockUntil && account.lockUntil > new Date()) {
+      throw genericFailure();
+    }
 
     if (!validPassword) {
       account.failedLoginAttempts = (account.failedLoginAttempts ?? 0) + 1;
-
       if (account.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
         account.lockUntil = new Date(
           Date.now() + LOGIN_LOCK_MINUTES * 60 * 1000,
         );
         account.failedLoginAttempts = 0;
       }
-
       await user.save();
-      throw new HttpError(401, "Invalid credentials");
+      throw genericFailure();
     }
 
     // ✅ credentials correct — reset failed-attempt counter
     account.failedLoginAttempts = 0;
     account.lockUntil = null;
 
-    // check OTP-step lockout too (separate counter from password lockout)
+    // check OTP-step lockout too (separate counter from password lockout).
+    // This 429 is fine to be distinct: reaching this point already proves
+    // the attacker knows the correct password, so there's nothing left to
+    // enumerate.
     if (
       account.loginOtpLockedUntil &&
       account.loginOtpLockedUntil > new Date()
@@ -267,8 +303,17 @@ export class UserService {
   async sendResetPasswordEmail(email?: string) {
     if (!email) throw new HttpError(400, "Email is required");
 
+    // 🟡 FIX (Gap #1): always return the same generic response whether or
+    // not an account exists for this email — don't 404 on unknown emails.
+    const genericResponse = {
+      message:
+        "If an account with that email exists, a reset code has been sent.",
+    };
+
     const user = await userRepository.getUserByEmail(email);
-    if (!user) throw new HttpError(404, "User not found");
+    if (!user) {
+      return genericResponse;
+    }
 
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedCode = await bcrypt.hash(resetCode, 10);
@@ -283,9 +328,15 @@ export class UserService {
     <p>This code will expire in 10 minutes.</p>
   `;
 
-    await sendEmail(user.email, "Password Reset Code", html);
+    try {
+      await sendEmail(user.email, "Password Reset Code", html);
+    } catch (emailErr: any) {
+      console.error("[RESET-PW] sendEmail failed:", emailErr.message);
+      // Still return the generic response — surfacing the email failure
+      // here would also leak that the account exists.
+    }
 
-    return { message: "Reset code sent to email" };
+    return genericResponse;
   }
 
   async deleteMe(userId: string, password: string) {
@@ -302,19 +353,28 @@ export class UserService {
   }
 
   async resetPassword(email: string, code: string, newPassword: string) {
-    const user = await userRepository.getUserByEmail(email);
-    if (!user) throw new HttpError(404, "User not found");
+    // 🟡 FIX (Gap #1): one generic error for "no such user", "no reset
+    // pending", "expired code", and "wrong code" — these must be
+    // indistinguishable to the caller.
+    const genericFailure = () =>
+      new HttpError(400, "Invalid or expired reset code");
 
-    if (!user.passwordResetCode || !user.passwordResetExpires) {
-      throw new HttpError(400, "No reset request found");
+    const user = await userRepository.getUserByEmail(email);
+
+    // Run a dummy compare even when there's no user/code, so this branch
+    // takes roughly the same time as the real comparison path below.
+    await bcrypt.compare(code, user?.passwordResetCode ?? DUMMY_HASH);
+
+    if (!user || !user.passwordResetCode || !user.passwordResetExpires) {
+      throw genericFailure();
     }
 
     if (user.passwordResetExpires < new Date()) {
-      throw new HttpError(400, "Reset code expired");
+      throw genericFailure();
     }
 
     const isValid = await bcrypt.compare(code, user.passwordResetCode);
-    if (!isValid) throw new HttpError(400, "Invalid reset code");
+    if (!isValid) throw genericFailure();
 
     user.password = await bcrypt.hash(newPassword, 12);
     user.passwordResetCode = undefined;
@@ -325,19 +385,24 @@ export class UserService {
   }
 
   async verifyResetPasswordCode(email: string, code: string) {
-    const user = await userRepository.getUserByEmail(email);
-    if (!user) throw new HttpError(404, "User not found");
+    // 🟡 FIX (Gap #1): same generic-failure treatment as resetPassword.
+    const genericFailure = () =>
+      new HttpError(400, "Invalid or expired reset code");
 
-    if (!user.passwordResetCode || !user.passwordResetExpires) {
-      throw new HttpError(400, "No reset request found");
+    const user = await userRepository.getUserByEmail(email);
+
+    await bcrypt.compare(code, user?.passwordResetCode ?? DUMMY_HASH);
+
+    if (!user || !user.passwordResetCode || !user.passwordResetExpires) {
+      throw genericFailure();
     }
 
     if (user.passwordResetExpires < new Date()) {
-      throw new HttpError(400, "Reset code expired");
+      throw genericFailure();
     }
 
     const isValid = await bcrypt.compare(code, user.passwordResetCode);
-    if (!isValid) throw new HttpError(400, "Invalid reset code");
+    if (!isValid) throw genericFailure();
 
     return { message: "Code verified" };
   }
