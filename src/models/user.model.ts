@@ -6,6 +6,7 @@ type UserSchemaType = UserType & {
   fcmToken?: string | null;
   passwordResetCode?: string | null;
   passwordResetExpires?: Date | null;
+  tokenVersion?: number;
 };
 
 const UserSchema: Schema = new Schema<UserSchemaType>(
@@ -30,6 +31,7 @@ const UserSchema: Schema = new Schema<UserSchemaType>(
     fcmToken: { type: String, default: null },
     passwordResetCode: { type: String, default: null },
     passwordResetExpires: { type: Date, default: null },
+    tokenVersion: { type: Number, default: 0 },
     loginOtpCodeHash: { type: String, default: null, select: false },
     loginOtpExpires: { type: Date, default: null },
     loginOtpAttempts: { type: Number, default: 0 },
@@ -37,18 +39,15 @@ const UserSchema: Schema = new Schema<UserSchemaType>(
   },
 
   {
-    timestamps: true, // auto createdAt and updatedAt
+    timestamps: true,
   },
 );
 
 export interface IUser extends UserType, Document {
   lockUntil: Date;
-  // combine UserType and Document
-  _id: mongoose.Types.ObjectId; // mongo related attribute/ custom attributes
+  _id: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export const UserModel = mongoose.model<IUser>("User", UserSchema);
-// UserModel is the mongoose model for User collection
-// db.users in MongoDB

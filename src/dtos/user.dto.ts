@@ -1,9 +1,6 @@
 import z from "zod";
 import { UserSchema } from "../types/user.type";
-// re-use UserSchema from types
 export const CreateUserDTO = UserSchema.pick({
-  // firstName: true,
-  // lastName: true,
   email: true,
   username: true,
   password: true,
@@ -13,27 +10,20 @@ export const CreateUserDTO = UserSchema.pick({
   DOB: true,
   gender: true,
 })
-  .extend(
-    // add new attribute to zod
-    {
-      confirmPassword: z
-        .string()
-        .min(10, "Password must be at least 10 characters")
-        .regex(/[a-z]/, "Must contain a lowercase letter")
-        .regex(/[A-Z]/, "Must contain an uppercase letter")
-        .regex(/[0-9]/, "Must contain a number")
-        .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
-      role: z.enum(["user", "admin", "driver"]).default("user"),
-    },
-  )
-  .refine(
-    // extra validation for confirmPassword
-    (data) => data.password === data.confirmPassword,
-    {
-      message: "Passwords do not match",
-      path: ["confirmPassword"],
-    },
-  );
+  .extend({
+    confirmPassword: z
+      .string()
+      .min(10, "Password must be at least 10 characters")
+      .regex(/[a-z]/, "Must contain a lowercase letter")
+      .regex(/[A-Z]/, "Must contain an uppercase letter")
+      .regex(/[0-9]/, "Must contain a number")
+      .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
+    role: z.enum(["user", "admin", "driver"]).default("user"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 export type CreateUserDTO = z.infer<typeof CreateUserDTO>;
 
 export const LoginUserDTO = z.object({
