@@ -45,6 +45,7 @@ const UserSchema: Schema = new Schema<UserSchemaType>(
 
 export interface IUser extends UserType, Document {
   lockUntil: Date;
+  tokenVersion: number;
   _id: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

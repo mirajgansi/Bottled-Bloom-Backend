@@ -22,7 +22,7 @@ export const UserSchema = z.object({
   passwordResetCode: z.string().nullable().optional(),
   passwordResetExpires: z.date().nullable().optional(),
   fcmToken: z.string().optional(),
-
+  tokenVersion: z.number().int().min(0).optional(),
   loginOtpCodeHash: z.string().nullable().optional(),
   loginOtpExpires: z.date().nullable().optional(),
   loginOtpAttempts: z.number().int().min(0).optional(),

@@ -81,7 +81,9 @@ export class UserService {
       username: data.username,
       password: hashedPassword,
       role,
+      tokenVersion: 0,
     };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" }); // ← signed, never returned or used
     const newUser = await userRepository.createUser(payload);
     return toSafeUser(newUser);
   }
@@ -292,8 +294,8 @@ export class UserService {
     }
 
     if (cleanData.password) {
-      const hashedPassword = await bcryptjs.hash(cleanData.password, 10);
-      cleanData.password = hashedPassword;
+      cleanData.password = await bcryptjs.hash(cleanData.password, 10);
+      (cleanData as any).tokenVersion = (user.tokenVersion ?? 0) + 1; // NEW
     }
 
     const updatedUser = await userRepository.updateUser(userId, cleanData);
@@ -379,6 +381,7 @@ export class UserService {
     user.password = await bcrypt.hash(newPassword, 12);
     user.passwordResetCode = undefined;
     user.passwordResetExpires = undefined;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await user.save();
 
     return { message: "Password reset successful" };

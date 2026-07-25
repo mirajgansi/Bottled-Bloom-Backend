@@ -60,13 +60,11 @@ export class AdminUserController {
       });
     }
   }
-
   async updateUser(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = getParam(req, "id");
-      const parsedData = UpdateUserDTO.safeParse(req.body); // validate request body
+      const parsedData = UpdateUserDTO.safeParse(req.body);
       if (!parsedData.success) {
-        // validation failed
         return res
           .status(400)
           .json({ success: false, message: z.prettifyError(parsedData.error) });
@@ -76,7 +74,15 @@ export class AdminUserController {
         parsedData.data.image = `/uploads/${req.file.filename}`;
       }
       const updateData: UpdateUserDTO = parsedData.data;
-      const updatedUser = await adminUserService.updateUser(userId, updateData);
+
+      // CHANGED — pass the calling admin's own id through
+      const callingAdminId = req.user?._id?.toString();
+      const updatedUser = await adminUserService.updateUser(
+        userId,
+        updateData,
+        callingAdminId, // NEW third argument
+      );
+
       return res
         .status(200)
         .json({ success: true, message: "User Updated", data: updatedUser });
@@ -91,7 +97,8 @@ export class AdminUserController {
   async deleteUser(req: Request, res: Response) {
     try {
       const userId = getParam(req, "id");
-      const deleted = await adminUserService.deleteUser(userId);
+      const callingAdminId = req.user?._id?.toString();
+      const deleted = await adminUserService.deleteUser(userId, callingAdminId);
       if (!deleted) {
         return res
           .status(404)

@@ -23,16 +23,35 @@ export const authorizedMiddleware = async (
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer "))
       throw new HttpError(401, "Unauthorized JWT invalid");
+
     const token = authHeader.split(" ")[1];
-    const decodedToken = jwt.verify(token, JWT_SECRET) as Record<string, any>;
+    const decodedToken = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    }) as Record<string, any>;
+
     if (!decodedToken || !decodedToken.id) {
       throw new HttpError(401, "Unauthorized JWT unverified");
     }
+
     const user = await userRepository.getUserById(decodedToken.id);
     if (!user) throw new HttpError(401, "Unauthorized user not found");
+
+    // NEW — reject tokens issued before the user's last security-relevant change
+    if ((decodedToken.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+      throw new HttpError(401, "Session expired, please log in again");
+    }
+
     req.user = user;
     next();
-  } catch (err: Error | any) {
+  } catch (err: any) {
+    if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message: "Unauthorized JWT invalid or expired",
+        });
+    }
     return res
       .status(err.statusCode || 500)
       .json({ success: false, message: err.message });
