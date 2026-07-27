@@ -72,7 +72,6 @@ export class UserService {
       role,
       tokenVersion: 0,
     };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" }); // ← signed, never returned or used
     const newUser = await userRepository.createUser(payload);
     return toSafeUser(newUser);
   }
@@ -221,6 +220,7 @@ export class UserService {
       email: user.email,
       username: user.username,
       role: user.role,
+      tokenVersion: user.tokenVersion,
     };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
 
