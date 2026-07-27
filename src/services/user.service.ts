@@ -304,6 +304,14 @@ export class UserService {
     const user = await userRepository.getUserById(userId);
     if (!user) throw new HttpError(404, "User not found");
 
+    // Prevent admins from deleting their own account
+    if (user.role === "admin") {
+      throw new HttpError(
+        403,
+        "Administrators cannot delete their own account.",
+      );
+    }
+
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) throw new HttpError(400, "Password is incorrect");
 
@@ -312,7 +320,6 @@ export class UserService {
 
     return true;
   }
-
   async resetPassword(email: string, code: string, newPassword: string) {
     // 🟡 FIX (Gap #1): one generic error for "no such user", "no reset
     // pending", "expired code", and "wrong code" — these must be
