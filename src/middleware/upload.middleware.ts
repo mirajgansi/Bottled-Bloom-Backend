@@ -11,8 +11,6 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ✅ single source of truth: mimetype -> safe extension
-// never derive the extension from file.originalname (client-controlled)
 const MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/jpg": ".jpg",
@@ -27,8 +25,6 @@ const storage = multer.diskStorage({
   filename: function (req: Request, file, cb) {
     const ext = MIME_TO_EXT[file.mimetype];
     if (!ext) {
-      // fileFilter should already have blocked this, but never trust
-      // a single layer — refuse to write a file with an unknown type
       return cb(new HttpError(400, "Unsupported file type"), "");
     }
     cb(null, `${randomUUID()}${ext}`);

@@ -15,9 +15,10 @@ import path from "path";
 import mongoSanitize from "express-mongo-sanitize";
 import { globalLimiter } from "./middleware/ratelimit.middleware";
 import helmet from "helmet";
+import { csrfOriginCheck } from "./middleware/csrf.middleware";
 
 const app: Application = express();
-
+app.use(csrfOriginCheck);
 // 🟡 FIX (Gap #10): trust proxy was never set. Without it, req.ip resolves
 // to the reverse proxy's IP for every request once this is deployed behind
 // any load balancer/PaaS, so all rate limiters (globalLimiter, authLimiter,

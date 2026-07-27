@@ -103,9 +103,7 @@ export class AdminUserService {
 
   async getUserById(id: string) {
     const user = await userRepository.getUserById(id);
-    if (!user) {
-      throw new HttpError(404, "User not found");
-    }
-    return user;
+    if (!user) throw new HttpError(404, "User not found");
+    return toSafeUser(user);
   }
 }
