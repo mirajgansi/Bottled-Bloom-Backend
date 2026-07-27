@@ -19,29 +19,10 @@ import { csrfOriginCheck } from "./middleware/csrf.middleware";
 
 const app: Application = express();
 app.use(csrfOriginCheck);
-// 🟡 FIX (Gap #10): trust proxy was never set. Without it, req.ip resolves
-// to the reverse proxy's IP for every request once this is deployed behind
-// any load balancer/PaaS, so all rate limiters (globalLimiter, authLimiter,
-// etc.) collapse onto a single shared bucket — or, on newer
-// express-rate-limit versions, requests start throwing
-// ERR_ERL_UNEXPECTED_X_FORWARDED_FOR outright.
-//
-// This is env-driven since you haven't picked a host yet:
-//   TRUST_PROXY unset/"0"  -> false  (no proxy — safe default for local dev)
-//   TRUST_PROXY="1"        -> 1      (exactly one hop — most single-LB PaaS:
-//                                      Render, Railway, Heroku, Fly.io)
-//   TRUST_PROXY="2"        -> 2      (two hops — e.g. CDN + platform LB)
-//
-// Deliberately NOT supporting a bare `true` here: that trusts the entire
-// X-Forwarded-For chain, letting a client spoof its own IP by just sending
-// that header, which defeats IP-based rate limiting entirely. Once you
-// deploy, set TRUST_PROXY to the exact number of hops in front of Node —
-// not more, not fewer — and verify by logging req.ip against the platform's
+
 // dashboard IP for a real request before relying on it.
 const trustProxyHops = parseInt(process.env.TRUST_PROXY ?? "0", 10);
 app.set("trust proxy", trustProxyHops > 0 ? trustProxyHops : false);
-
-// 1. Security headers — first, so every response gets them
 app.use(
   helmet({
     frameguard: { action: "deny" },
@@ -66,19 +47,16 @@ const corsOptions = {
   origin: ["http://localhost:3000", "http://localhost:3003"],
 };
 app.use(cors(corsOptions));
-
 // 3. Body parsing
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// 4. Request logger — single instance, log-injection safe
 app.use((req, _res, next) => {
   const safeUrl = req.url.replace(/[\r\n]/g, "");
   console.log("➡️", req.method, safeUrl);
   next();
 });
 
-// 5. NoSQL injection sanitization — Express 5 compatible custom wrapper
 app.use((req, _res, next) => {
   if (req.body) {
     req.body = mongoSanitize.sanitize(req.body);

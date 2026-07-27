@@ -15,18 +15,10 @@ type Creator = {
   role?: "admin" | "user" | "driver";
 };
 
-// A bcrypt hash of a value nobody will ever type, used so failed logins for
-// an email that doesn't exist take the same amount of time as a real
-// password comparison (defends against timing-based enumeration).
 const DUMMY_HASH =
   "$2a$10$CwTycUXWue0Thq9StjUM0uJ8i9m2ZQMLXe2rH0YvXKz6nqZmY9dke";
 
-// ✅ thresholds within rubric-required 10–15 range
 const MAX_LOGIN_ATTEMPTS = 12;
-// 🔴 FIX (Bug #1): this was `15 * 60 * 1000` — already pre-converted to ms —
-// and then got multiplied by `* 60 * 1000` AGAIN at the call site below,
-// turning a 15-minute lock into ~625 days. Keep this as a plain minute
-// count; conversion to ms happens exactly once, at the point of use.
 const LOGIN_LOCK_MINUTES = 15;
 
 const OTP_EXPIRY_MINUTES = 10;
@@ -41,9 +33,6 @@ function toSafeUser(user: any) {
     passwordResetCode,
     passwordResetExpires,
     loginOtpCodeHash,
-    // 🟡 FIX (Gap #2): these were leaking to the client — they expose the
-    // exact state of the brute-force defenses (how many attempts are left,
-    // whether/when the account unlocks, whether an OTP is pending).
     loginOtpExpires,
     loginOtpAttempts,
     loginOtpLockedUntil,
@@ -88,42 +77,22 @@ export class UserService {
     return toSafeUser(newUser);
   }
 
-  /**
-   * STEP 1: verify credentials + apply account lockout, then send an OTP
-   * by email instead of issuing a session token directly.
-   */
   async loginUser(data: LoginUserDTO) {
-    // 🟡 FIX (Gap #1): a single helper for the generic failure so every
-    // failure path — no such user, wrong password, locked account — returns
-    // the exact same status/message. Previously "no user" was a 404 and
-    // "wrong password" was a 401, which let an attacker enumerate which
-    // emails have accounts just by watching the status code.
     const genericFailure = () =>
       new HttpError(401, "Invalid email or password");
 
     const user = await userRepository.getUserByEmail(data.email);
     const account = user as any;
-
-    // Compare against the real hash if the user exists, otherwise against a
-    // dummy hash. This runs unconditionally, before any branching on
-    // whether the user/lock exists, so response time doesn't leak account
-    // existence either.
     const validPassword = await bcryptjs.compare(
       data.password,
       account?.password ?? DUMMY_HASH,
     );
-
     if (!user) {
       throw genericFailure();
     }
-
-    // Locked accounts also fail generically (no distinct 423 status) —
-    // a different status code here would itself confirm the account exists
-    // and is currently locked.
     if (account.lockUntil && account.lockUntil > new Date()) {
       throw genericFailure();
     }
-
     if (!validPassword) {
       account.failedLoginAttempts = (account.failedLoginAttempts ?? 0) + 1;
       if (account.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
@@ -135,15 +104,8 @@ export class UserService {
       await user.save();
       throw genericFailure();
     }
-
-    // ✅ credentials correct — reset failed-attempt counter
     account.failedLoginAttempts = 0;
     account.lockUntil = null;
-
-    // check OTP-step lockout too (separate counter from password lockout).
-    // This 429 is fine to be distinct: reaching this point already proves
-    // the attacker knows the correct password, so there's nothing left to
-    // enumerate.
     if (
       account.loginOtpLockedUntil &&
       account.loginOtpLockedUntil > new Date()
@@ -154,11 +116,8 @@ export class UserService {
         "Too many verification attempts. Please try again later.",
       );
     }
-
-    // ✅ generate + send OTP instead of issuing a session
     const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = await bcryptjs.hash(otp, 10);
-
     account.loginOtpCodeHash = otpHash;
     account.loginOtpExpires = new Date(
       Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000,

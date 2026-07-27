@@ -113,7 +113,6 @@ export class AuthController {
 
       const result = await userService.loginUser(loginData);
 
-      // ✅ No session issued yet — client must complete OTP verification
       return res.status(200).json({
         success: true,
         message: "Verification code sent to your email",
