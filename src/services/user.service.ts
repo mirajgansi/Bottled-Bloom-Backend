@@ -146,11 +146,6 @@ export class UserService {
 
     return { requiresOtp: true, tempToken };
   }
-
-  /**
-   * STEP 2: verify the OTP against the pre-auth token, then issue the
-   * real session JWT.
-   */
   async verifyLoginOtp(tempToken: string, code: string) {
     let decoded: any;
     try {
@@ -224,7 +219,6 @@ export class UserService {
     };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
 
-    // ✅ FIX: was returning raw `user` — leaked password hash to the client
     return { token, user: toSafeUser(user) };
   }
 
@@ -264,8 +258,6 @@ export class UserService {
   async sendResetPasswordEmail(email?: string) {
     if (!email) throw new HttpError(400, "Email is required");
 
-    // 🟡 FIX (Gap #1): always return the same generic response whether or
-    // not an account exists for this email — don't 404 on unknown emails.
     const genericResponse = {
       message:
         "If an account with that email exists, a reset code has been sent.",
@@ -293,8 +285,6 @@ export class UserService {
       await sendEmail(user.email, "Password Reset Code", html);
     } catch (emailErr: any) {
       console.error("[RESET-PW] sendEmail failed:", emailErr.message);
-      // Still return the generic response — surfacing the email failure
-      // here would also leak that the account exists.
     }
 
     return genericResponse;
@@ -303,15 +293,12 @@ export class UserService {
   async deleteMe(userId: string, password: string) {
     const user = await userRepository.getUserById(userId);
     if (!user) throw new HttpError(404, "User not found");
-
-    // Prevent admins from deleting their own account
     if (user.role === "admin") {
       throw new HttpError(
         403,
         "Administrators cannot delete their own account.",
       );
     }
-
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) throw new HttpError(400, "Password is incorrect");
 
@@ -321,16 +308,11 @@ export class UserService {
     return true;
   }
   async resetPassword(email: string, code: string, newPassword: string) {
-    // 🟡 FIX (Gap #1): one generic error for "no such user", "no reset
-    // pending", "expired code", and "wrong code" — these must be
-    // indistinguishable to the caller.
     const genericFailure = () =>
       new HttpError(400, "Invalid or expired reset code");
 
     const user = await userRepository.getUserByEmail(email);
 
-    // Run a dummy compare even when there's no user/code, so this branch
-    // takes roughly the same time as the real comparison path below.
     await bcrypt.compare(code, user?.passwordResetCode ?? DUMMY_HASH);
 
     if (!user || !user.passwordResetCode || !user.passwordResetExpires) {
@@ -354,7 +336,6 @@ export class UserService {
   }
 
   async verifyResetPasswordCode(email: string, code: string) {
-    // 🟡 FIX (Gap #1): same generic-failure treatment as resetPassword.
     const genericFailure = () =>
       new HttpError(400, "Invalid or expired reset code");
 

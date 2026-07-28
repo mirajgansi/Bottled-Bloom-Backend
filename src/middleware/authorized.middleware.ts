@@ -22,7 +22,7 @@ export const authorizedMiddleware = async (
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer "))
-      throw new HttpError(401, "Unauthorized JWT invalid");
+      throw new HttpError(401, "Unauthorized");
 
     const token = authHeader.split(" ")[1];
     const decodedToken = jwt.verify(token, JWT_SECRET, {
@@ -30,31 +30,29 @@ export const authorizedMiddleware = async (
     }) as Record<string, any>;
 
     if (!decodedToken || !decodedToken.id) {
-      throw new HttpError(401, "Unauthorized JWT unverified");
+      throw new HttpError(401, "Unauthorized");
     }
-
     const user = await userRepository.getUserById(decodedToken.id);
-    if (!user) throw new HttpError(401, "Unauthorized user not found");
+    if (!user) throw new HttpError(401, "Unauthorized");
 
-    // NEW — reject tokens issued before the user's last security-relevant change
     if ((decodedToken.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
       throw new HttpError(401, "Session expired, please log in again");
     }
-
     req.user = user;
     next();
   } catch (err: any) {
     if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Unauthorized JWT invalid or expired",
-        });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
+    if (err instanceof HttpError) {
+      return res
+        .status(err.statusCode)
+        .json({ success: false, message: err.message });
+    }
+    console.error("[authorizedMiddleware] unexpected error:", err);
     return res
-      .status(err.statusCode || 500)
-      .json({ success: false, message: err.message });
+      .status(500)
+      .json({ success: false, message: "Internal Server Error" });
   }
 };
 
@@ -74,7 +72,7 @@ export const adminMiddleware = async (
   } catch (err: Error | any) {
     return res
       .status(err.statusCode || 500)
-      .json({ succes: false, message: err.message });
+      .json({ success: false, message: err.message });
   }
 };
 
@@ -94,6 +92,6 @@ export const driverMiddleware = async (
   } catch (err: Error | any) {
     return res
       .status(err.statusCode || 500)
-      .json({ succes: false, message: err.message });
+      .json({ success: false, message: err.message });
   }
 };
