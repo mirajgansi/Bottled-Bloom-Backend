@@ -9,14 +9,11 @@ import { authorizedMiddleware } from "../middleware/authorized.middleware";
 const router = Router();
 const controller = new DriverController();
 router.use(authorizedMiddleware);
-// driver updates availability
 router.patch(
   "/:id/status",
   driverMiddleware,
   controller.driverUpdateStatus.bind(controller),
 );
-
-// driver updates order status
 router.patch(
   "/orders/:id/status",
   driverMiddleware,
@@ -34,10 +31,6 @@ router.get(
   controller.getDriverDetailById.bind(controller),
 );
 
-router.get(
-  "/stats",
-  // adminMiddleware, // enable if needed
-  controller.getDriversByStats.bind(controller),
-);
+router.get("/stats", controller.getDriversByStats.bind(controller));
 
 export default router;

@@ -1,4 +1,3 @@
-// src/middleware/csrf.middleware.ts
 import { Request, Response, NextFunction } from "express";
 import { HttpError } from "../errors/http-error";
 
@@ -10,10 +9,6 @@ export const csrfOriginCheck = (
   _res: Response,
   next: NextFunction,
 ) => {
-  // NEW — Socket.IO's own handshake has its own JWT-based auth (see
-  // config/socket.ts). It is not a REST endpoint and doesn't carry a
-  // standard browser Origin header the same way fetch/form requests do —
-  // don't apply this check to it.
   if (req.path.startsWith("/socket.io")) return next();
 
   if (SAFE_METHODS.includes(req.method)) return next();

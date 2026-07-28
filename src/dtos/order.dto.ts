@@ -20,7 +20,6 @@ export const UpdateOrderStatusDto = z
     driverId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    // require driver when shipping
     if (data.status === "shipped" && !data.driverId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -28,9 +27,6 @@ export const UpdateOrderStatusDto = z
         message: "driverId is required when status is shipped",
       });
     }
-
-    // optional: prevent driverId on cancelled/pending if you want
-    // if (data.status === "cancelled" && data.driverId) { ... }
   });
 export const AssignDriverDto = z.object({
   driverId: z.string().min(1, "driverId is required"),

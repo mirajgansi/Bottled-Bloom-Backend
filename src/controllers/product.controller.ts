@@ -9,8 +9,6 @@ import {
   AddCommentDto,
 } from "../dtos/product.dto";
 import mongoose from "mongoose";
-import { escapeRegex } from "../utils/escapeRegex";
-import { ProductModel } from "../models/product.model";
 import { getParam } from "../utils/params";
 import { verifyImageOrDelete } from "../utils/verifyImageSignature";
 
@@ -423,11 +421,6 @@ export class ProductController {
     }
   }
 
-  // ======================================================
-  // ✅ NEW: RATING / FAVORITE / COMMENT (USER)
-  // ======================================================
-
-  // ⭐ Rate product (body: { rating: 1..5 })
   async rateProduct(req: Request, res: Response) {
     try {
       const userId = req.user?._id;

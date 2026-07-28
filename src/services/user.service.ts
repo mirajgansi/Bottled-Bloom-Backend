@@ -1,6 +1,5 @@
 import { CreateUserDTO, LoginUserDTO, UpdateUserDTO } from "../dtos/user.dto";
 import { UserRepository } from "../repositories/user.repository";
-import bcryptjs from "bcryptjs";
 import { HttpError } from "../errors/http-error";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config";
@@ -60,7 +59,7 @@ export class UserService {
     const usernameCheck = await userRepository.getUserByUsername(data.username);
     if (usernameCheck) throw new HttpError(403, "Username already in use");
 
-    const hashedPassword = await bcryptjs.hash(data.password, 10);
+    const hashedPassword = await bcrypt.hash(data.password, 10);
     data.password = hashedPassword;
 
     const role = createdBy?.role === "admin" ? (data.role ?? "user") : "user";
@@ -82,7 +81,7 @@ export class UserService {
 
     const user = await userRepository.getUserByEmail(data.email);
     const account = user as any;
-    const validPassword = await bcryptjs.compare(
+    const validPassword = await bcrypt.compare(
       data.password,
       account?.password ?? DUMMY_HASH,
     );
@@ -116,7 +115,7 @@ export class UserService {
       );
     }
     const otp = crypto.randomInt(100000, 1000000).toString();
-    const otpHash = await bcryptjs.hash(otp, 10);
+    const otpHash = await bcrypt.hash(otp, 10);
     account.loginOtpCodeHash = otpHash;
     account.loginOtpExpires = new Date(
       Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000,
@@ -181,7 +180,7 @@ export class UserService {
       );
     }
 
-    const isValid = await bcryptjs.compare(code, user.loginOtpCodeHash);
+    const isValid = await bcrypt.compare(code, user.loginOtpCodeHash);
 
     if (!isValid) {
       user.loginOtpAttempts = (user.loginOtpAttempts ?? 0) + 1;
@@ -247,7 +246,7 @@ export class UserService {
     }
 
     if (cleanData.password) {
-      cleanData.password = await bcryptjs.hash(cleanData.password, 10);
+      cleanData.password = await bcrypt.hash(cleanData.password, 10);
       (cleanData as any).tokenVersion = (user.tokenVersion ?? 0) + 1; // NEW
     }
 
