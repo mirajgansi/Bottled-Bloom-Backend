@@ -16,6 +16,7 @@ import mongoSanitize from "express-mongo-sanitize";
 import { globalLimiter } from "./middleware/ratelimit.middleware";
 import helmet from "helmet";
 import { csrfOriginCheck } from "./middleware/csrf.middleware";
+import cookieParser from "cookie-parser";
 
 const app: Application = express();
 app.use(csrfOriginCheck);
@@ -50,6 +51,7 @@ app.use(cors(corsOptions));
 // 3. Body parsing
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 app.use((req, _res, next) => {
   const safeUrl = req.url.replace(/[\r\n]/g, "");
@@ -92,7 +94,6 @@ app.use("/api/driver", diverRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/api/admin/analytics", adminAnalyticsRoute);
-
 app.use((err: any, req: Request, res: Response, _next: any) => {
   console.error("ERROR:", err);
   return res.status(err.statusCode ?? 500).json({

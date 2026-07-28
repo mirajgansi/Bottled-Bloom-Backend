@@ -33,10 +33,24 @@ export const authorizedMiddleware = async (
       throw new HttpError(401, "Unauthorized JWT unverified");
     }
 
+    const rawUserDataCookie = req.cookies?.user_data;
+
+    if (rawUserDataCookie) {
+      let cookieUserData: any;
+      try {
+        cookieUserData = JSON.parse(rawUserDataCookie);
+      } catch {
+        cookieUserData = null; // not valid JSON — ignore it, don't use for identity
+      }
+
+      if (cookieUserData?._id && cookieUserData._id !== decodedToken.id) {
+        throw new HttpError(403, "Identity mismatch detected");
+      }
+    }
+
     const user = await userRepository.getUserById(decodedToken.id);
     if (!user) throw new HttpError(401, "Unauthorized user not found");
 
-    // NEW — reject tokens issued before the user's last security-relevant change
     if ((decodedToken.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
       throw new HttpError(401, "Session expired, please log in again");
     }
