@@ -11,6 +11,7 @@ import {
 import mongoose from "mongoose";
 import { getParam } from "../utils/params";
 import { verifyImageOrDelete } from "../utils/verifyImageSignature";
+import { activityLogService } from "../services/activitylog.service";
 
 const productService = new ProductService();
 
@@ -67,6 +68,21 @@ export class ProductController {
         parsedData.data,
         adminId,
       );
+
+      activityLogService.logAdminAction({
+        adminId: adminId.toString(),
+        adminEmail: (req.user as any).email,
+        action: "admin.product.create",
+        targetId: product._id.toString(),
+        ip: req.ip,
+        message: `Admin created product ${product.name}`,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Product created successfully",
+        data: product,
+      });
 
       return res.status(201).json({
         success: true,
@@ -295,6 +311,20 @@ export class ProductController {
         parsedData.data,
       );
 
+      activityLogService.logAdminAction({
+        adminId: req.user?._id?.toString() ?? "unknown",
+        adminEmail: (req.user as any)?.email,
+        action: "admin.product.update",
+        targetId: productId,
+        ip: req.ip,
+        message: `Admin updated product ${productId}`,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Product updated successfully",
+        data: updated,
+      });
       return res.status(200).json({
         success: true,
         message: "Product updated successfully",
@@ -314,6 +344,20 @@ export class ProductController {
       const productId = getParam(req, "id");
       const result = await productService.deleteProduct(productId);
 
+      activityLogService.logAdminAction({
+        adminId: req.user?._id?.toString() ?? "unknown",
+        adminEmail: (req.user as any)?.email,
+        action: "admin.product.delete",
+        targetId: productId,
+        ip: req.ip,
+        message: `Admin deleted product ${productId}`,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        data: result,
+      });
       return res.status(200).json({
         success: true,
         message: "Product deleted successfully",

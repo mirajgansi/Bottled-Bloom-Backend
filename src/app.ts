@@ -10,6 +10,7 @@ import orderRoutes from "./routes/order.route";
 import diverRoutes from "./routes/driver.route";
 import adminAnalyticsRoute from "./routes/admin/admin.analytics.route";
 import notificationRoutes from "./routes/notification.route";
+import activityLogRoutes from "./routes/admin/activityLog.route";
 import cors from "cors";
 import path from "path";
 import mongoSanitize from "express-mongo-sanitize";
@@ -17,6 +18,7 @@ import { globalLimiter } from "./middleware/ratelimit.middleware";
 import helmet from "helmet";
 import { csrfOriginCheck } from "./middleware/csrf.middleware";
 import cookieParser from "cookie-parser";
+import { activityLoggerMiddleware } from "./middleware/acitivitylogger.middleware";
 
 const app: Application = express();
 app.use(csrfOriginCheck);
@@ -52,6 +54,7 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(activityLoggerMiddleware);
 
 app.use((req, _res, next) => {
   const safeUrl = req.url.replace(/[\r\n]/g, "");
@@ -83,7 +86,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin/users", adminUserRoutes);
-
+app.use("/api/admin/activity-logs", activityLogRoutes);
 app.get("/", (req: Request, res: Response) => {
   return res
     .status(200)

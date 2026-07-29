@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import z from "zod";
 import { AdminUserService } from "../../services/admin/user.service";
 import { getParam } from "../../utils/params";
+import { activityLogService } from "../../services/activitylog.service";
 
 let adminUserService = new AdminUserService();
 interface QueryParams {
@@ -25,6 +26,16 @@ export class AdminUserController {
       }
       const userData: CreateUserDTO = parsedData.data;
       const newUser = await adminUserService.createUser(userData);
+
+      activityLogService.logAdminAction({
+        adminId: req.user!._id.toString(),
+        adminEmail: (req.user as any).email,
+        action: "admin.user.create",
+        targetId: newUser._id.toString(),
+        ip: req.ip,
+        message: `Admin created user ${newUser.email}`,
+      });
+
       return res
         .status(201)
         .json({ success: true, message: "User Created", data: newUser });
@@ -80,8 +91,21 @@ export class AdminUserController {
       const updatedUser = await adminUserService.updateUser(
         userId,
         updateData,
-        callingAdminId, // NEW third argument
+        callingAdminId,
       );
+
+      activityLogService.logAdminAction({
+        adminId: callingAdminId!,
+        adminEmail: (req.user as any).email,
+        action: "admin.user.update",
+        targetId: userId,
+        ip: req.ip,
+        message: `Admin updated user ${userId}`,
+      });
+
+      return res
+        .status(200)
+        .json({ success: true, message: "User Updated", data: updatedUser });
 
       return res
         .status(200)
@@ -98,6 +122,14 @@ export class AdminUserController {
     try {
       const userId = getParam(req, "id");
       const callingAdminId = req.user?._id?.toString();
+      activityLogService.logAdminAction({
+        adminId: callingAdminId!,
+        adminEmail: (req.user as any).email,
+        action: "admin.user.delete",
+        targetId: userId,
+        ip: req.ip,
+        message: `Admin deleted user ${userId}`,
+      });
       const deleted = await adminUserService.deleteUser(userId, callingAdminId);
       if (!deleted) {
         return res

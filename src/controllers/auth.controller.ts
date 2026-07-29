@@ -9,6 +9,7 @@ import {
 } from "../dtos/user.dto";
 import { Request, Response } from "express";
 import z from "zod";
+import { activityLogService } from "../services/activitylog.service";
 
 let userService = new UserService();
 export class AuthController {
@@ -191,6 +192,14 @@ export class AuthController {
         parsedData.data.image = `/uploads/${req.file.filename}`;
       }
       const updatedUser = await userService.updateUser(userId, parsedData.data);
+      activityLogService.logAdminAction({
+        adminId: userId.toString(),
+        adminEmail: (req.user as any).email,
+        action: "user.profile.update",
+        targetId: userId.toString(),
+        ip: req.ip,
+        message: `User updated their own profile`,
+      });
       return res.status(200).json({
         success: true,
         message: "User updated successfully",
@@ -243,7 +252,14 @@ export class AuthController {
       }
 
       await userService.deleteMe(userId, password);
-
+      activityLogService.logAdminAction({
+        adminId: userId.toString(),
+        adminEmail: (req.user as any).email,
+        action: "user.profile.update",
+        targetId: userId.toString(),
+        ip: req.ip,
+        message: `User updated their own profile`,
+      });
       return res.status(200).json({
         success: true,
         message: "Account deleted successfully",
