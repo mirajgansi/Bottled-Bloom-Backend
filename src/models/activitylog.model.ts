@@ -6,7 +6,8 @@ export type ActivityCategory =
   | "admin"
   | "data"
   | "access"
-  | "system";
+  | "system"
+  | "order";
 export type ActivitySeverity = "info" | "warning" | "critical";
 
 export interface IActivityLog extends Document {
