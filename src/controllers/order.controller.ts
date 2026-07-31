@@ -220,15 +220,16 @@ export class OrderController {
 
   async driverUpdateStatus(req: any, res: Response) {
     try {
-      const driverId = req.user.id; // from authorizedMiddleware
-      const { id } = req.params; // orderId
-      const { status } = req.body; // "shipped" | "delivered"
+      const driverId = req.user.id;
+      const { id } = req.params;
+      const { status } = req.body;
 
       const updated = await orderService.driverUpdateStatus(
         driverId,
         id,
         status,
       );
+
       activityLogService.log({
         userId: driverId,
         userEmail: req.user?.email,
