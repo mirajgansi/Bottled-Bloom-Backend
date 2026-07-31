@@ -29,3 +29,23 @@ export const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+export const publicReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests. Please try again later.",
+  },
+});
+export const writeActionLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 20, // 20 writes / 10 min / IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many actions. Please slow down and try again shortly.",
+  },
+});
