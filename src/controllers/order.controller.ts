@@ -3,6 +3,7 @@ import { OrderService } from "../services/order.service";
 import { AssignDriverDto, UpdateOrderStatusDto } from "../dtos/order.dto";
 import { HttpError } from "../errors/http-error";
 import { getParam } from "../utils/params";
+import { activityLogService } from "../services/activitylog.service";
 
 const orderService = new OrderService();
 
@@ -228,6 +229,19 @@ export class OrderController {
         id,
         status,
       );
+      activityLogService.log({
+        userId: driverId,
+        userEmail: req.user?.email,
+        role: "driver",
+        action: "order.driver_status_update",
+        category: "order",
+        severity: "info",
+        success: true,
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        message: `Driver marked order ${id} as ${status}`,
+        metadata: { orderId: id, status },
+      });
 
       return res.status(200).json({
         success: true,
