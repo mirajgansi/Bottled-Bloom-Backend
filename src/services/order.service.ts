@@ -18,6 +18,7 @@ type DriverStatus = "shipped" | "delivered";
 
 const orderRepository = new OrderRepository();
 const notificationService = new NotificationService();
+type Requester = { id: string; role: "user" | "admin" | "driver" };
 
 export class OrderService {
   async createFromCart(userId: string, input: CreateOrderInput) {
@@ -133,10 +134,29 @@ export class OrderService {
     return OrderModel.find({ userId }).sort({ createdAt: -1 });
   }
 
-  async getOrderById(orderId: string) {
+  async getOrderById(orderId: string, requester?: Requester) {
     if (!orderId) throw new HttpError(400, "Order id is required");
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      throw new HttpError(400, "Invalid order id");
+    }
+
     const order = await OrderModel.findById(orderId);
     if (!order) throw new HttpError(404, "Order not found");
+
+    // Zero Trust: authorize here too, don't rely solely on the controller.
+    if (requester && requester.role !== "admin") {
+      const isOwner = String(order.userId) === String(requester.id);
+      const isAssignedDriver =
+        requester.role === "driver" &&
+        order.driverId &&
+        String(order.driverId) === String(requester.id);
+
+      if (!isOwner && !isAssignedDriver) {
+        throw new HttpError(403, "Forbidden");
+      }
+    }
+
     return order;
   }
 
