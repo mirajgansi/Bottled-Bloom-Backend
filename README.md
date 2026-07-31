@@ -148,5 +148,3 @@ Most routes require a `Bearer` JWT (`authorizedMiddleware`); admin- and driver-o
 - Helmet CSP, rate limiting (global + endpoint-specific), and `trust proxy` is env-configurable rather than blindly trusting `X-Forwarded-For`
 
 ## License
-
-Add your license of choice here.
