@@ -62,9 +62,6 @@ ActivityLogSchema.index({ createdAt: -1 });
 ActivityLogSchema.index({ userId: 1, createdAt: -1 });
 ActivityLogSchema.index({ category: 1, severity: 1, createdAt: -1 });
 
-// Optional retention (uncomment once you've decided a policy for the report):
-// ActivityLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 180 });
-
 export const ActivityLogModel = mongoose.model<IActivityLog>(
   "ActivityLog",
   ActivityLogSchema,
