@@ -349,7 +349,22 @@ export class OrderService {
 
     if (!mongoose.Types.ObjectId.isValid(orderId))
       throw new HttpError(400, "Invalid order id");
-    if 
+    if (!mongoose.Types.ObjectId.isValid(driverId))
+      throw new HttpError(400, "Invalid driverId");
+
+    const order = await OrderModel.findById(orderId);
+    if (!order) throw new HttpError(404, "Order not found");
+
+    if (order.status === "cancelled" || order.status === "delivered") {
+      throw new HttpError(
+        400,
+        `Cannot assign driver when order is ${order.status}`,
+      );
+    }
+
+    if (order.driverId) {
+      throw new HttpError(400, "This order already has a driver assigned");
+    }
 
     const driver = await UserModel.findById(driverId);
     if (!driver) throw new HttpError(404, "Driver not found");
