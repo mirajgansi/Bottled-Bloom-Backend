@@ -40,8 +40,8 @@ export const publicReadLimiter = rateLimit({
   },
 });
 export const writeActionLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 20, // 20 writes / 10 min / IP
+  windowMs: 10 * 60 * 1000,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

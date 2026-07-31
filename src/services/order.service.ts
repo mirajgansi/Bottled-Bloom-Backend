@@ -362,16 +362,18 @@ export class OrderService {
       );
     }
 
+    if (order.driverId) {
+      throw new HttpError(400, "This order already has a driver assigned");
+    }
+
     const driver = await UserModel.findById(driverId);
     if (!driver) throw new HttpError(404, "Driver not found");
     if (driver.role !== "driver")
       throw new HttpError(400, "Selected user is not a driver");
+
     order.status = "shipped";
-    await order.save();
     order.driverId = driver._id;
-
     await order.save();
-
     await notificationService.notify({
       to: driverId,
       from: userId,
