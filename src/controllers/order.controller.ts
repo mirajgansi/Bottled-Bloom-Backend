@@ -54,27 +54,17 @@ export class OrderController {
     }
   }
 
-  // GET /api/orders/:id
   async getOrderById(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.id ?? (req as any).user?._id;
       const role = (req as any).user?.role;
 
-      const order = await orderService.getOrderById(getParam(req, "id"));
-
-      // user can only see own order (admin can see all)
-      if (
-        role !== "admin" &&
-        role !== "driver" &&
-        String(order.userId) !== String(userId)
-      ) {
-        throw new HttpError(403, "Forbidden");
-      }
-
-      return res.json({
-        success: true,
-        data: order,
+      const order = await orderService.getOrderById(getParam(req, "id"), {
+        id: userId,
+        role,
       });
+
+      return res.json({ success: true, data: order });
     } catch (error: any) {
       return res.status(error.statusCode ?? 500).json({
         success: false,
