@@ -167,6 +167,19 @@ export class OrderController {
         parsed.data.driverId,
         adminId,
       );
+      activityLogService.logAdminAction({
+        adminId: adminId.toString(),
+        adminEmail: req.user?.email,
+        action: "order.driver_assigned",
+        targetId: updated._id.toString(),
+        ip: req.ip,
+        userAgent: req.headers["user-agent"],
+        message: `Driver ${parsed.data.driverId} assigned to order ${updated._id}`,
+        metadata: {
+          orderId: updated._id.toString(),
+          driverId: parsed.data.driverId,
+        },
+      });
 
       return res.json({
         success: true,
