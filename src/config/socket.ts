@@ -51,4 +51,5 @@ export const initSocket = (server: any) => {
 };
 
 export const getIO = () => io;
+
 export const isUserOnline = (userId: string) => onlineUsers.has(userId);
